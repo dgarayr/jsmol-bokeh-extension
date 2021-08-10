@@ -2,6 +2,9 @@ from bokeh.core.properties import Instance, String, Dict
 from bokeh.models import ColumnDataSource, LayoutDOM
 from bokeh.util.compiler import TypeScript
 from os import path
+import hashlib
+import json
+import bokeh.util.compiler
 
 directory = path.dirname(path.realpath(__file__))
 with open(path.join(directory, 'jsmol.ts'), 'r') as f:
@@ -40,3 +43,39 @@ class JSMol(LayoutDOM):
     # e.g. https://chemapps.stolaf.edu/jmol/jsmol/JSmol.min.js
     # or jsmol/JSmol.min.js
     js_url = String
+
+### DGR, Aug2021
+def use_cached_model(model,implementation):
+    '''Function to employ a pre-cached model, skipping the NodeJS dependency of jsmol_bokeh_extension. Shall be passed
+    to set_cache_hook(). The model should be stored at the same folder as the modules. Adapted from
+    https://github.com/emerald-geomodelling/BokehGarden/blob/149909faa86fd31428e9974e533c3a3d1c3ab295/bokeh_garden/compiler_cache.py
+    with some modifications on how hashes are obtained: here, the module name is used instead of the full code.
+    '''
+    cached_model = None
+    full_name = model.full_name 
+    # Use this name to hash & to control json files, replacing dots by underscores
+    hashval = hashlib.sha256(full_name.encode("utf-8")).hexdigest()
+    json_fname = full_name.replace(".","_") + ".json"
+    json_route = path.join(directory,json_fname)
+    # Load the cached model from file when it is present and check whether the hash matches the hash computed here
+    if (path.isfile(json_route)):
+        with open(json_route,"r") as fjson:
+            try:
+                cached_model = json.load(fjson)
+            except:
+                pass
+        if (hashval != cached_model["hash"]):
+            cached_model = None
+
+    # Fallback: if the pre-compiled model is not available, and thus cached_model is None, 
+    # compile it via .nodejs_compile() and dump to file for further use, so it is only compiled at first run
+    if (not cached_model):
+        compiled_code = bokeh.util.compiler.nodejs_compile(implementation.code,lang=implementation.lang,file=implementation.file)
+        cached_model = {"hash":hashval,"code":dict(compiled_code)}
+        with open(json_route,"w") as fjson:
+            json.dump(cached_model,fjson)
+    # And now transform the "code" to AttrDict so it can be accessed by .attr syntax
+    cached_model["code"] = bokeh.util.compiler.AttrDict(cached_model["code"])
+    return cached_model["code"]
+
+bokeh.util.compiler.set_cache_hook(use_cached_model)
