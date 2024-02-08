@@ -18,7 +18,6 @@ class JSMol(LayoutDOM):
     # of JavaScript (or CoffeeScript) code that implements the JavaScript side
     # of the custom extension model.
     __implementation__ = TypeScript(TS_CODE)
-
     # Below are all the "properties" for this model. Bokeh properties are
     # class attributes that define the fields (and their types) that can be
     # communicated automatically between Python and the browser. Properties

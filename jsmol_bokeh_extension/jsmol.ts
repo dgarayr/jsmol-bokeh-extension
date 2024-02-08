@@ -3,7 +3,6 @@
 // "jsmol.py" contains the python counterpart.
 declare var Jmol: any;
 declare var jmolApplet0: any;
- 
 
 // These "require" lines are similar to python "import" statements
 import {LayoutDOM, LayoutDOMView} from "models/layouts/layout_dom"
@@ -11,7 +10,8 @@ import {LayoutItem} from "core/layout"
 import {ColumnDataSource} from "models/sources/column_data_source"
 import * as p from "core/properties"
 
-
+// to allow JQuery to be used without being in the system
+declare let $: any
 // This defines some default options for JSmol
 // See https://gist.github.com/jhjensen2/4701339 for more details.
 const INFO = {
@@ -59,9 +59,18 @@ export class JSMolView extends LayoutDOMView {
     if (! this.model.info) {
       this.model.info = INFO
     }
-
     // disable usage tracker - this conflicts with cross-site-scripting policies when served over https
     delete Jmol._tracker
+    // avoid use of jsmol.php which can be problematic 
+    Jmol.$ajax = function(info: any) {
+      Jmol._ajaxCall = info.url;
+      info.cache = (info.cache != "NO");
+      info.url = Jmol._fixProtocol(info.url);
+
+      let parsedUrl = new URL(info.url);
+      info.url = parsedUrl.searchParams.get('query');
+      return $.ajax(info);
+      }
 
     // returns html + assigns applet object to "jmolApplet0" variable
     var html = Jmol.getAppletHtml("jmolApplet0", this.model.info)
