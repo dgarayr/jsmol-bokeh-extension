@@ -68,7 +68,11 @@ export class JSMolView extends LayoutDOMView {
       info.url = Jmol._fixProtocol(info.url);
 
       let parsedUrl = new URL(info.url);
-      info.url = parsedUrl.searchParams.get('query');
+	  if (parsedUrl.searchParams.get('query') == null) {
+		info.url = parsedUrl.href;
+	  } else {
+		info.url = parsedUrl.searchParams.get('query');
+	  }
       return $.ajax(info);
       }
 
